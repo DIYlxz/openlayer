@@ -10,6 +10,12 @@
         </ul>
       </div>
     </div>
+    <div class="map-select">
+      <div class="map-select-box">
+        <div class="map-select-btn" :class="{on: isMap}" @click="changeIsBing">必应</div>
+        <div class="map-select-btn" :class="{on: !isMap}" @click="changeIsGao">高德</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -22,11 +28,13 @@ import * as olProj from "ol/proj";
 //TileLayer预渲染图层，VectorLayer矢量层画布渲染器
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 //XYZ切片地图引用
-import { XYZ, Vector as VectorSource } from "ol/source";
+import { Vector as VectorSource } from "ol/source";
 //Point点
 import { Point } from "ol/geom";
 //Style为矢量特征呈现样式的容器,Fill设置矢量特征的填充样式,Stroke矢量图的描边样式,Circle矢量圆形
 import { Style, Fill, Stroke, Circle as sCircle } from "ol/style";
+//引入两地图
+import mapType from "@/utils/openlayers/maptype";
 
 export default {
   name: "Map",
@@ -35,14 +43,27 @@ export default {
       map: null,
       popup: null,
       shopPopup: false,
+      tileLayer: null,
+      mapList: null,
+      locaMap: "1",
     };
   },
+  computed: {
+    isMap() {
+      return this.locaMap === "1" ? true : false;
+    },
+  },
   mounted() {
+    this.mapList = mapType;
+    this.tileLayer = new TileLayer({
+      source: mapType.find((e) => e.id === this.locaMap).value,
+    });
     this.initMap();
     this.setMarker();
     this.addOverlay();
     this.singleclick();
     this.pointermove();
+    this.mapList = mapType;
   },
   methods: {
     //添加弹窗组件
@@ -124,30 +145,34 @@ export default {
         //目标元素id
         target: "myMap",
         //图层，一个地图容器有一个或者多个图层
-        layers: [
-          //预渲染图层
-          new TileLayer({
-            //数据来源，高德地图XYZ切片地图资源
-            source: new XYZ({
-              url: "https://wprd0{1-4}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&style=7&x={x}&y={y}&z={z}",
-            }),
-          }),
-        ],
+        layers: [this.tileLayer],
         //在可视区域内控制地图与人的交互
         view: new View({
           //地图初始中心，将坐标从经度/纬度转换为不同的投影。
           center: olProj.fromLonLat([106.550483, 29.563707]),
           //初始放大比例
-          zoom: 10,
+          zoom: 18,
         }),
       });
     },
+    changeIsBing() {
+      this.locaMap = "1";
+      this.setMapSource(mapType[1].value);
+    },
+    changeIsGao() {
+      this.locaMap = "0";
+      this.setMapSource(mapType[0].value);
+    },
+    setMapSource(e) {
+      this.tileLayer.setSource(e);
+    }
   },
 };
 </script>
 
 <style lang="scss" scoped>
 #Map {
+  position: relative;
   #myMap {
     width: 100vw;
     height: 100vh;
@@ -163,6 +188,29 @@ export default {
       text-align: left;
       ul {
         padding-left: 0;
+      }
+    }
+  }
+  .map-select {
+    position: absolute;
+    right: 2rem;
+    bottom: 2rem;
+    width: 6rem;
+    height: 2rem;
+    background: #fff;
+    .map-select-box {
+      display: flex;
+      justify-content: space-around;
+      .map-select-btn {
+        width: 50%;
+        line-height: 2rem;
+        cursor: pointer;
+      }
+      .map-select-btn:hover {
+        background: rgb(194, 194, 194);
+      }
+      .on {
+        background: rgb(194, 194, 194);
       }
     }
   }

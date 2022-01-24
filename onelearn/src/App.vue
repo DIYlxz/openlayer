@@ -1,10 +1,11 @@
 <template>
-  <my-map></my-map>
+  <div id="app">
+    <my-map></my-map>
+  </div>
 </template>
 
 <script>
-import MyMap from './views/MyMap.vue'
-
+import MyMap from "./views/one/MyMap"
 export default {
   name: 'App',
   components: {
@@ -13,7 +14,7 @@ export default {
 }
 </script>
 
-<style lang="scss">
+<style>
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -24,5 +25,5 @@ export default {
 * {
   margin: 0;
   padding: 0;
-} 
+}
 </style>
