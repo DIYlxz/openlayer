@@ -12,8 +12,20 @@
     </div>
     <div class="map-select">
       <div class="map-select-box">
-        <div class="map-select-btn" :class="{on: isMap}" @click="changeIsBing">必应</div>
-        <div class="map-select-btn" :class="{on: !isMap}" @click="changeIsGao">高德</div>
+        <div
+          class="map-select-btn"
+          :class="{ on: isMap }"
+          @click="changeIsBing"
+        >
+          必应
+        </div>
+        <div
+          class="map-select-btn"
+          :class="{ on: !isMap }"
+          @click="changeIsGao"
+        >
+          高德
+        </div>
       </div>
     </div>
   </div>
@@ -28,13 +40,15 @@ import * as olProj from "ol/proj";
 //TileLayer预渲染图层，VectorLayer矢量层画布渲染器
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 //XYZ切片地图引用
-import { Vector as VectorSource } from "ol/source";
+import { Cluster, Vector as VectorSource } from "ol/source";
 //Point点
 import { Point } from "ol/geom";
 //Style为矢量特征呈现样式的容器,Fill设置矢量特征的填充样式,Stroke矢量图的描边样式,Circle矢量圆形
-import { Style, Fill, Stroke, Circle as sCircle } from "ol/style";
+import { Style, Fill, Stroke, Circle as sCircle, Text } from "ol/style";
 //引入两地图
 import mapType from "@/utils/openlayers/maptype";
+//构建一个包含所有给定坐标的区域
+import { boundingExtent } from 'ol/extent';
 
 export default {
   name: "Map",
@@ -46,6 +60,10 @@ export default {
       tileLayer: null,
       mapList: null,
       locaMap: "1",
+      //坐标标记层
+      markerLayer: null,
+      //坐标数据源
+      markerSource: null,
     };
   },
   computed: {
@@ -59,10 +77,7 @@ export default {
       source: mapType.find((e) => e.id === this.locaMap).value,
     });
     this.initMap();
-    this.setMarker();
-    this.addOverlay();
-    this.singleclick();
-    this.pointermove();
+    this.resolutionChange();
     this.mapList = mapType;
   },
   methods: {
@@ -93,52 +108,48 @@ export default {
         }
       });
     },
-    //点击触发事件
+    //点击触发事件，弹窗出现后并没有消失
     singleclick() {
       this.map.on("singleclick", (e) => {
-        const feature = this.map.forEachFeatureAtPixel(
-          e.pixel,
-          (feature) => feature
-        );
-        console.log(feature);
-        if (feature) {
-          this.shopPopup = true;
-          // 设置弹窗位置
-          let coordinates = feature.getGeometry().getCoordinates();
-          this.popup.setPosition(coordinates);
-        } else {
-          this.shopPopup = false;
-        }
+        //检测顶层是否被命中，返回promise
+        //then传入命中时的坐标点
+        this.markerLayer.getFeatures(e.pixel).then((clickedFeatures) => {
+          //坐标是否被命中
+          if(clickedFeatures.length) {
+            const features = clickedFeatures[0].get("features");
+            //该坐标有几个重叠
+            if(features.length > 1) {
+              const extent = boundingExtent(
+                features.map((r) => r.getGeometry().getCoordinates())
+              );
+              this.map.getView().fit(extent, { duration: 1000, padding: [200, 200, 200, 200] });
+            }else {
+              this.shopPopup = true;
+              //设置弹窗位置
+              let coordinates = features[0].getGeometry().getCoordinates();
+              this.popup.setPosition(coordinates);
+            }
+          }else {
+            this.shopPopup = false;
+          }
+        });
       });
     },
+    //监听缩放，让弹窗消失
+    resolutionChange() {
+      this.map.getView().on("change:resolution", ()=> {
+        this.shopPopup = false;
+      });
+    },
+    //增加矢量资源图
     setMarker() {
-      //创建新的矢量样式容器
-      const style = new Style({
-        //画矢量圆
-        image: new sCircle({
-          radius: 10,
-          stroke: new Stroke({
-            color: "blue",
-          }),
-          fill: new Fill({
-            color: "red",
-          }),
-        }),
+      this.setMarkerSource();
+      let style = this.setClusterStyle();
+      this.markerLayer = new VectorLayer({
+        source: this.markerSource,
+        style,
       });
-      //创建适量对象，设置点在中心点
-      const feature = new Feature({
-        geometry: new Point(olProj.fromLonLat([106.550483, 29.563707])),
-      });
-      //引入矢量样式
-      feature.setStyle(style);
-      //展现到图层
-      const marker = new VectorLayer({
-        source: new VectorSource({
-          features: [feature],
-        }),
-      });
-      //将给定的图层添加到此地图的顶部
-      this.map.addLayer(marker);
+      this.map.addLayer(this.markerLayer);
     },
     initMap() {
       this.map = new Map({
@@ -154,6 +165,10 @@ export default {
           zoom: 18,
         }),
       });
+      this.setMarker();
+      this.addOverlay();
+      this.singleclick();
+      this.pointermove();
     },
     changeIsBing() {
       this.locaMap = "1";
@@ -165,7 +180,98 @@ export default {
     },
     setMapSource(e) {
       this.tileLayer.setSource(e);
-    }
+    },
+    //获取各个坐标点
+    getPoints() {
+      return [
+        [106.550483, 29.563707],
+        [107.731056, 29.863785],
+        [104.066301, 30.572961],
+        [118.796624, 32.059344],
+        [114.304569, 30.593354],
+      ];
+    },
+    //获取点数据并且绘画
+    setMarkerSource() {
+      //创建新容器
+      let style = new Style({
+        image: new sCircle({
+          radius: 10,
+          stroke: new Stroke({
+            color: "#fff",
+          }),
+          fill: new Fill({
+            color: "#3399CC",
+          }),
+        }),
+      });
+      //获取点坐标
+      let points = this.getPoints();
+      let features = points.reduce((list, item) => {
+        let feature = new Feature({
+          geometry: new Point(olProj.fromLonLat(item)),
+        });
+        feature.setStyle(style);
+        list.push(feature);
+        return list;
+      }, []);
+      this.markerSource = new VectorSource({
+        features,
+      });
+      //对一群点进行集群，聚合，但是其他点会丢失
+      this.markerSource = new Cluster({
+        distance: 100,
+        source: new VectorSource({
+          features,
+        }),
+      });
+    },
+    //防止聚合后其他点丢失
+    setClusterStyle() {
+      const styleCache = {};
+      const style = (feature) => {
+        const size = feature.get("features").length;
+        let style = styleCache[size];
+        //当有点丢失时
+        if (!style) {
+          //且不止一个点的时候
+          if (size > 1) {
+            style = new Style({
+              image: new sCircle({
+                radius: 20,
+                stroke: new Stroke({
+                  color: "#fff",
+                }),
+                fill: new Fill({
+                  color: "#3399CC",
+                }),
+              }),
+              text: new Text({
+                text: size.toString(),
+                fill: new Fill({
+                  color: "#fff",
+                }),
+              }),
+            });
+          } else {
+            style = new Style({
+              image: new sCircle({
+                radius: 15,
+                stroke: new Stroke({
+                  color: "#fff",
+                }),
+                fill: new Fill({
+                  color: "#e9b626",
+                }),
+              }),
+            });
+          }
+          styleCache[size] = style;
+        }
+        return style;
+      };
+      return style;
+    },
   },
 };
 </script>
