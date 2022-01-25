@@ -28,6 +28,9 @@
         </div>
       </div>
     </div>
+    <div ref="menuPopup" class="menuPopup" v-show="showMenuPopup">
+      新增围栏
+    </div>
   </div>
 </template>
 
@@ -48,7 +51,7 @@ import { Style, Fill, Stroke, Circle as sCircle, Text } from "ol/style";
 //引入两地图
 import mapType from "@/utils/openlayers/maptype";
 //构建一个包含所有给定坐标的区域
-import { boundingExtent } from 'ol/extent';
+import { boundingExtent } from "ol/extent";
 
 export default {
   name: "Map",
@@ -57,6 +60,7 @@ export default {
       map: null,
       popup: null,
       shopPopup: false,
+      menuPopup: null,
       tileLayer: null,
       mapList: null,
       locaMap: "1",
@@ -64,6 +68,10 @@ export default {
       markerLayer: null,
       //坐标数据源
       markerSource: null,
+      //右键菜单
+      showMenuPopup: false,
+      //位置
+      position: null,
     };
   },
   computed: {
@@ -78,6 +86,7 @@ export default {
     });
     this.initMap();
     this.resolutionChange();
+    this.monitorRightBox();
     this.mapList = mapType;
   },
   methods: {
@@ -115,21 +124,23 @@ export default {
         //then传入命中时的坐标点
         this.markerLayer.getFeatures(e.pixel).then((clickedFeatures) => {
           //坐标是否被命中
-          if(clickedFeatures.length) {
+          if (clickedFeatures.length) {
             const features = clickedFeatures[0].get("features");
             //该坐标有几个重叠
-            if(features.length > 1) {
+            if (features.length > 1) {
               const extent = boundingExtent(
                 features.map((r) => r.getGeometry().getCoordinates())
               );
-              this.map.getView().fit(extent, { duration: 1000, padding: [200, 200, 200, 200] });
-            }else {
+              this.map
+                .getView()
+                .fit(extent, { duration: 1000, padding: [200, 200, 200, 200] });
+            } else {
               this.shopPopup = true;
               //设置弹窗位置
               let coordinates = features[0].getGeometry().getCoordinates();
               this.popup.setPosition(coordinates);
             }
-          }else {
+          } else {
             this.shopPopup = false;
           }
         });
@@ -137,9 +148,35 @@ export default {
     },
     //监听缩放，让弹窗消失
     resolutionChange() {
-      this.map.getView().on("change:resolution", ()=> {
+      this.map.getView().on("change:resolution", () => {
         this.shopPopup = false;
+        this.showMenuPopup = false;
       });
+    },
+    //监听右键设置围栏
+    monitorRightBox() {
+      //获取地图视口元素
+      this.map.getViewport().oncontextmenu = (e) => {
+        //取消右键默认事件
+        e.preventDefault();
+        this.showMenuPopup = true;
+        //设置弹窗位置跟随鼠标
+        let coordinates = this.map.getEventCoordinate(e);
+        this.position = coordinates;
+        this.menuPopup.setPosition(coordinates);
+      };
+    },
+    //添加右键弹窗组件
+    addRightOverlay() {
+      // 创建Overlay
+      let elPopup = this.$refs.menuPopup;
+      this.menuPopup = new Overlay({
+        //绑定元素
+        element: elPopup,
+      });
+      console.log();
+      //将组件添加到地图顶部
+      this.map.addOverlay(this.menuPopup);
     },
     //增加矢量资源图
     setMarker() {
@@ -151,6 +188,7 @@ export default {
       });
       this.map.addLayer(this.markerLayer);
     },
+    //初始化--------------------------
     initMap() {
       this.map = new Map({
         //目标元素id
@@ -166,8 +204,14 @@ export default {
         }),
       });
       this.setMarker();
+      //监听左键弹窗
       this.addOverlay();
+      //监听右键弹窗
+      this.addRightOverlay();
+      //监听点击
       this.singleclick();
+      //监听右键点击
+      this.monitorRightBox();
       this.pointermove();
     },
     changeIsBing() {
@@ -319,6 +363,13 @@ export default {
         background: rgb(194, 194, 194);
       }
     }
+  }
+  .menuPopup {
+    width: 8rem;
+    height: 2rem;
+    line-height: 2rem;
+    background: #fff;
+    cursor: pointer;
   }
 }
 </style>
