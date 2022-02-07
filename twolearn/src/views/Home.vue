@@ -8,6 +8,11 @@
           <li>信息2：xxx</li>
           <li>信息3：xxx</li>
         </ul>
+        <div class="btns-box">
+          <el-button @click.native="handleHistroy"
+            >历史轨迹</el-button
+          >
+        </div>
       </div>
     </div>
     <div class="map-select">
@@ -21,13 +26,26 @@
         ></el-option>
       </el-select>
     </div>
-    <div ref="menuPopup" class="menuPopup" v-show="showMenuPopup">新增围栏</div>
+    <div
+      ref="menuPopup"
+      class="menuPopup"
+      v-show="showMenuPopup"
+      @click="handleOperate"
+    >
+      新增围栏
+    </div>
     <fences
       v-if="operateDialogVisible"
       :visible="operateDialogVisible"
       @close="handleOperateClose"
       :location="position"
     ></fences>
+    <route
+      v-if="showHistroyTravel"
+      :visible="showHistroyTravel"
+      @close="handleOperateClose"
+      :location="position"
+    ></route>
     <div class="fence-select">
       <el-select v-model="fence" style="width: 150px">
         <el-option
@@ -68,6 +86,8 @@ import mapType from "../utils/maptype.js";
 import { boundingExtent } from "ol/extent";
 //引入对话弹窗组件
 import Fences from "../components/Fences.vue";
+//引入历史轨迹组件
+import Route from "../components/Route.vue";
 //地图资源记忆
 import { getMap, setMap } from "../utils/webStorage.js";
 
@@ -77,6 +97,7 @@ export default {
   name: "Map",
   components: {
     Fences,
+    Route,
   },
   data() {
     return {
@@ -106,6 +127,8 @@ export default {
       fence: null,
       //之前显示围栏
       fenceVector: null,
+      //展现历史轨迹弹窗
+      showHistroyTravel: false,
     };
   },
   computed: {
@@ -253,6 +276,7 @@ export default {
               this.shopPopup = true;
               //设置弹窗位置
               let coordinates = features[0].getGeometry().getCoordinates();
+              this.position = coordinates;
               this.popup.setPosition(coordinates);
             }
           } else {
@@ -279,7 +303,7 @@ export default {
         let coordinates = this.map.getEventCoordinate(e);
         this.position = coordinates;
         this.menuPopup.setPosition(coordinates);
-        this.handleOperate();
+        // this.handleOperate();
       };
     },
     //添加右键弹窗组件
@@ -428,12 +452,18 @@ export default {
     //关闭对话弹窗
     handleOperateClose() {
       this.operateDialogVisible = false;
+      this.showHistroyTravel = false;
     },
-    // 打开弹窗
+    // 打开对话弹窗
     handleOperate() {
       this.showMenuPopup = false;
       this.operateDialogVisible = true;
     },
+    //打开历史轨迹弹窗
+    handleHistroy() {
+      this.shopPopup = false;
+      this.showHistroyTravel = true;
+    }
   },
 };
 </script>

@@ -73,7 +73,7 @@ export default {
     location: {
       type: Array,
       default: function () {
-        return [11861036.827437758, 447605.1566656902];
+        return [];
       },
     },
   },

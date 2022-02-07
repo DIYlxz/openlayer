@@ -13,7 +13,9 @@ import { Select,
   RadioGroup,
   RadioButton,  
   Button,
-  Message
+  Message,
+  DatePicker,
+  Slider
 } from "element-ui";
 
 Vue.config.productionTip = false
@@ -30,6 +32,8 @@ Vue.component(Input.name, Input);
 Vue.component(RadioGroup.name, RadioGroup);
 Vue.component(RadioButton.name, RadioButton);
 Vue.component(Button.name, Button);
+Vue.component(DatePicker.name, DatePicker);
+Vue.component(Slider.name, Slider);
 
 
 new Vue({
